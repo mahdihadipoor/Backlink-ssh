@@ -1,5 +1,5 @@
 ## Quick Start
 
 ```bash
-bash <(curl -Ls https://raw.githubusercontent.com/mahdihadipoor/Backlink-ssh/blob/main/install.sh)
+bash <(curl -Ls https://raw.githubusercontent.com/mahdihadipoor/Backlink-ssh/main/install.sh)
 ```
