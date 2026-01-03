@@ -11,27 +11,30 @@ import os
 # --- CONFIGURATION ---
 CONTROL_PORT = 8000
 BUFFER_SIZE = 4096
-APP_DIR = "/usr/local/tunpro"
+# Updated Directory
+APP_DIR = "/usr/local/backlink"
 STATUS_FILE = os.path.join(APP_DIR, "status.json")
 
 # --- GLOBAL STATE ---
-# Used to track active sessions for the status file
 server_sessions = {} 
 client_info = {}     
 
 # --- HELPERS ---
 
+def print_banner():
+    print("""
+    ======================================
+       BACKLINK-SSH | Reverse Tunnel v1.0
+    ======================================
+    """)
+
 def save_status(mode):
-    """Writes the current state to a JSON file for the UI to read."""
     data = {"mode": mode, "timestamp": time.time()}
-    
     if mode == 'server':
-        # Convert dictionary to list for JSON
         active_list = []
         for port, ip in server_sessions.items():
             active_list.append({"ip": ip, "port": port})
         data["sessions"] = active_list
-        
     elif mode == 'client':
         data["vps_ip"] = client_info.get("vps_ip", "N/A")
         data["assigned_port"] = client_info.get("assigned_port", "Pending")
@@ -81,7 +84,6 @@ def handle_client_session(agent_sock, agent_addr):
         assigned_port = get_free_port()
         print(f"[+] Agent {agent_addr[0]} connected. Assigned Port: {assigned_port}", flush=True)
         
-        # Update State
         server_sessions[assigned_port] = agent_addr[0]
         save_status('server')
         
@@ -102,7 +104,6 @@ def handle_client_session(agent_sock, agent_addr):
         print(f"[!] Session Error: {e}", flush=True)
     finally:
         agent_sock.close()
-        # Remove from State
         if assigned_port in server_sessions:
             del server_sessions[assigned_port]
             save_status('server')
@@ -110,14 +111,15 @@ def handle_client_session(agent_sock, agent_addr):
 
 def run_server_mode():
     if not os.path.exists(APP_DIR): os.makedirs(APP_DIR)
-    save_status('server') # Init empty file
+    save_status('server')
     
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
         server_socket.bind(('0.0.0.0', CONTROL_PORT))
         server_socket.listen(10)
-        print(f"[*] Server Daemon running on port {CONTROL_PORT}", flush=True)
+        print_banner()
+        print(f"[*] Backlink Server running on port {CONTROL_PORT}", flush=True)
         while True:
             client, addr = server_socket.accept()
             t = threading.Thread(target=handle_client_session, args=(client, addr))
@@ -134,6 +136,7 @@ def run_client_mode(server_ip):
     client_info['vps_ip'] = server_ip
     client_info['connected'] = False
     save_status('client')
+    print_banner()
 
     while True:
         try:
@@ -146,12 +149,11 @@ def run_client_mode(server_ip):
             if data.startswith("PORT:"):
                 assigned_port = data.split(":")[1]
                 
-                # Update State
                 client_info['assigned_port'] = assigned_port
                 client_info['connected'] = True
                 save_status('client')
                 
-                print(f"[+] Tunnel Established. Remote Port: {assigned_port}", flush=True)
+                print(f"[+] Backlink Established. Remote Port: {assigned_port}", flush=True)
                 
                 local_ssh = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 local_ssh.connect(('127.0.0.1', 22))

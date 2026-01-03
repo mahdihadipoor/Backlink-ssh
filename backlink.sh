@@ -8,15 +8,15 @@ CYAN='\033[0;36m'
 PLAIN='\033[0m'
 
 # --- PATHS ---
-APP_DIR="/usr/local/tunpro"
-SERVICE_FILE="/etc/systemd/system/tunpro.service"
+APP_DIR="/usr/local/backlink"
+SERVICE_FILE="/etc/systemd/system/backlink.service"
 APP_SCRIPT="$APP_DIR/app.py"
 STATUS_FILE="$APP_DIR/status.json"
 
 # --- HELPER FUNCTIONS ---
 
 check_status() {
-    if systemctl is-active --quiet tunpro; then
+    if systemctl is-active --quiet backlink; then
         echo -e "${GREEN}Running${PLAIN}"
     else
         echo -e "${RED}Stopped${PLAIN}"
@@ -24,7 +24,7 @@ check_status() {
 }
 
 check_enabled() {
-    if systemctl is-enabled --quiet tunpro; then
+    if systemctl is-enabled --quiet backlink; then
         echo -e "${GREEN}Yes${PLAIN}"
     else
         echo -e "${RED}No${PLAIN}"
@@ -40,7 +40,7 @@ install_dependency() {
 }
 
 configure_service() {
-    echo -e "${CYAN}--- Configuration Wizard ---${PLAIN}"
+    echo -e "${CYAN}--- Backlink-SSH Setup Wizard ---${PLAIN}"
     echo "1. Server Mode (VPS)"
     echo "2. Client Mode (Target)"
     read -p "Select Mode: " mode_opt
@@ -58,7 +58,7 @@ configure_service() {
 
     cat <<EOF > $SERVICE_FILE
 [Unit]
-Description=SSH Tunnel Pro Service
+Description=Backlink-SSH Service
 After=network.target
 
 [Service]
@@ -84,8 +84,6 @@ show_sessions() {
         return
     fi
 
-    # We use Heredoc with 'EOF' (quoted) to prevent Bash expansion issues
-    # We pass the filename as an argument to python
     python3 - "$STATUS_FILE" << 'EOF'
 import json
 import sys
@@ -93,7 +91,6 @@ import os
 
 try:
     status_file = sys.argv[1]
-    
     if not os.path.exists(status_file):
         print("Status file not created yet.")
         sys.exit(0)
@@ -102,8 +99,6 @@ try:
         data = json.load(f)
         
     mode = data.get('mode', 'unknown')
-    
-    # ANSI Color Codes defined in Python
     GREEN = "\033[92m"
     CYAN = "\033[96m"
     RED = "\033[91m"
@@ -114,10 +109,7 @@ try:
         print(f"Current Mode: {GREEN}SERVER{RESET}")
         print(f"Active Clients: {len(sessions)}")
         print('-' * 40)
-        
-        if not sessions:
-            print("No agents connected.")
-            
+        if not sessions: print("No agents connected.")
         for s in sessions:
             print(f"Client IP: {s['ip']}  --->  Listening Port: {GREEN}{s['port']}{RESET}")
             print(f"SSH Command: {CYAN}ssh root@localhost -p {s['port']}{RESET}")
@@ -126,7 +118,6 @@ try:
     elif mode == 'client':
         print(f"Current Mode: {CYAN}CLIENT{RESET}")
         connected = data.get('connected', False)
-        
         if connected:
             vps = data.get('vps_ip')
             port = data.get('assigned_port')
@@ -139,7 +130,6 @@ try:
             print('=' * 50)
         else:
             print(f"Status: {RED}DISCONNECTED{RESET} (Retrying...)")
-            
 except Exception as e:
     print(f"Error parsing status: {e}")
 EOF
@@ -148,19 +138,19 @@ EOF
 
 # --- MENU ACTIONS ---
 
-start_tun() { systemctl start tunpro; echo -e "${GREEN}[+] Started.${PLAIN}"; }
-stop_tun() { systemctl stop tunpro; echo -e "${RED}[+] Stopped.${PLAIN}"; }
-restart_tun() { systemctl restart tunpro; echo -e "${GREEN}[+] Restarted.${PLAIN}"; }
-view_logs() { echo -e "${YELLOW}[*] Logs (Ctrl+C to exit)...${PLAIN}"; journalctl -u tunpro -f; }
+start_tun() { systemctl start backlink; echo -e "${GREEN}[+] Started.${PLAIN}"; }
+stop_tun() { systemctl stop backlink; echo -e "${RED}[+] Stopped.${PLAIN}"; }
+restart_tun() { systemctl restart backlink; echo -e "${GREEN}[+] Restarted.${PLAIN}"; }
+view_logs() { echo -e "${YELLOW}[*] Logs (Ctrl+C to exit)...${PLAIN}"; journalctl -u backlink -f; }
 
 uninstall_tun() {
     read -p "Are you sure? (y/n): " confirm
     if [[ "$confirm" == "y" ]]; then
-        systemctl stop tunpro
-        systemctl disable tunpro
+        systemctl stop backlink
+        systemctl disable backlink
         rm $SERVICE_FILE
         rm -rf $APP_DIR
-        rm /usr/bin/tunpro
+        rm /usr/bin/backlink
         systemctl daemon-reload
         echo -e "${GREEN}[+] Uninstalled.${PLAIN}"
         exit 0
@@ -171,33 +161,26 @@ uninstall_tun() {
 
 show_menu() {
     clear
-    echo -e "${CYAN}SSH Tunnel Pro Manager v2.1${PLAIN}"
+    echo -e "${CYAN}Backlink-SSH Manager v1.0${PLAIN}"
     echo -e "------------------------------------------------"
-    # Safe check for OS name
-    OS_NAME=$(cat /etc/os-release | grep PRETTY_NAME | cut -d '"' -f 2)
-    echo -e "OS: ${OS_NAME}"
-    
     STATUS=$(check_status)
     AUTOSTART=$(check_enabled)
     echo -e "Panel State: ${STATUS} | Autostart: ${AUTOSTART}"
     echo -e "------------------------------------------------"
-    
     echo -e "${GREEN}1.${PLAIN} Install / Reconfigure"
     echo -e "------------------------------------------------"
     echo -e "${GREEN}2.${PLAIN} Start Service"
     echo -e "${GREEN}3.${PLAIN} Stop Service"
     echo -e "${GREEN}4.${PLAIN} Restart Service"
     echo -e "------------------------------------------------"
-    echo -e "${YELLOW}5. Show Active Sessions (IPs & Ports)${PLAIN}"
+    echo -e "${YELLOW}5. Show Active Sessions & Ports${PLAIN}"
     echo -e "${GREEN}6.${PLAIN} View Live Logs"
     echo -e "------------------------------------------------"
     echo -e "${GREEN}7.${PLAIN} Enable Autostart"
     echo -e "${GREEN}8.${PLAIN} Disable Autostart"
     echo -e "${RED}0.${PLAIN} Uninstall & Exit"
     echo -e "------------------------------------------------"
-    
     read -p "Select [0-8]: " choice
-    
     case $choice in
         1) install_dependency; configure_service; restart_tun ;;
         2) start_tun ;;
@@ -205,8 +188,8 @@ show_menu() {
         4) restart_tun ;;
         5) show_sessions ;;
         6) view_logs ;;
-        7) systemctl enable tunpro; echo -e "${GREEN}Enabled${PLAIN}" ;;
-        8) systemctl disable tunpro; echo -e "${RED}Disabled${PLAIN}" ;;
+        7) systemctl enable backlink; echo -e "${GREEN}Enabled${PLAIN}" ;;
+        8) systemctl disable backlink; echo -e "${RED}Disabled${PLAIN}" ;;
         0) uninstall_tun ;;
         *) echo -e "${RED}Invalid${PLAIN}" ;;
     esac
