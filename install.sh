@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- CONFIGURATION ---
-GITHUB_USER="mahdihadipoor"
+GITHUB_USER="mahdi-1991"
 GITHUB_REPO="Backlink-ssh"
 BRANCH="main"
 
