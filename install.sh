@@ -5,7 +5,7 @@ GITHUB_USER="mahdi-1991"
 GITHUB_REPO="Backlink-ssh"
 BRANCH="main"
 
-BASE_URL="https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO/$BRANCH"
+BASE_URL="https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO"
 INSTALL_DIR="/usr/local/backlink"
 BIN_PATH="/usr/bin/backlink"
 
